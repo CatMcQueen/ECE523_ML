@@ -1,0 +1,134 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import csv
+
+def make_random_var(mu, sigma, n, d):
+    rand = np.random.multivariate_normal(mu, sigma, size=d)
+    return rand
+
+
+means = [[5., 6.], [0., 2.]]
+# covariance matrices for the 3 classes
+covs = [[[ 7.0,  1.0],
+        [ 2.5,  0.]],
+        [[ 7.0,  1.0],
+        [ 2.5,  0.]]]
+
+testmeans   = [2,3]
+testcovs    = [[4.,3.],
+            [4., 0.]]
+
+
+dim      = 2
+classes  = 2
+nsamples = 500
+dataset  = np.zeros(( nsamples*classes, dim + 1))
+for idx, mean in enumerate(means):
+    xy  = make_random_var(mean, covs[idx], 2, nsamples)
+    z   = np.full(xy.shape[0], idx)
+    dataset[nsamples*idx:nsamples*(idx+1)] = np.array([xy[:, 0], xy[:, 1], z]).T
+'''
+dim      = 2
+classes  = 2
+nsamples = 500
+trainsamples =  int(nsamples*.8)
+testsamples = nsamples - trainsamples
+dataset  = np.zeros(( trainsamples*classes, dim + 1))
+testset  = np.zeros(( testsamples*classes , dim + 1))
+for idx, mean in enumerate(means):
+    xy  = make_random_var(mean, covs[idx], 2, nsamples)
+    z   = np.full(xy.shape[0], idx)
+    print(np.array([xy[:trainsamples, 0], xy[:trainsamples, 1], z]).T.shape)
+    dataset[trainsamples*idx:trainsamples*(idx+1)] = np.array([xy[:trainsamples, 0], xy[:trainsamples, 1], z]).T
+    testset[testsamples*idx:testsamples*(idx+1)]   = np.array([xy[trainsamples:, 0], xy[trainsamples:, 1], z]).T
+'''
+
+
+
+class LogisticReg():
+    def __init__(self, learningrate):
+        self.lr = learningrate
+        self.w  = None
+        self.b  = None
+
+    def sumg(self,xinit): 
+        result = 0
+        # vectorize it?
+        exponent = np.exp(-(np.dot( self.x, self.w)))
+        g = 1/(1+exponent)
+        result = np.dot(xinit.T, (g-self.y))
+        return result
+        '''
+        for idx, xi in enumerate(x): 
+            # we could add a +b but it was mentioned in office hours it wasn't necessary 
+            exponent = np.exp(-(np.dot(self.w.T, xi))) 
+            g = 1/(1 + exponent) 
+            result += np.dot((g - y[idx]),xinit[idx])
+            return result
+        '''
+
+    def sgd(self, dataset): 
+        self.w = np.random.randn(dataset.shape[1]-1)
+        init    = 0 
+        length  = len(dataset)
+        for i in range(10000): # shuffle data every time 
+            np.random.shuffle(dataset) 
+            self.x  = dataset[:, :-1]
+            self.y  = dataset[:, -1]
+            if init==0: 
+                temp = self.w - self.lr * self.sumg(np.ones((len(dataset),2))) 
+                init = 1 
+            else: 
+                # multiply by 1/m to make it smaller?
+                temp = self.w - self.lr *  self.sumg(self.x) 
+            if np.linalg.norm(self.w-temp)**2 < 1*10^(-3): 
+                print('finished') 
+                self.w = temp 
+                return 
+            if (i % 500 == 0): 
+                print(np.linalg.norm(self.w - temp)**2) 
+            self.w = temp
+
+
+    def predict(self,x):
+        # do the whole dataset at once?
+        #1000x3 * 3x1 = 1000x1
+        #ones        = np.ones(len(x))
+        print(x.shape)
+        print(self.w.shape)
+        #newx        = np.insert(x, 1, ones, axis=1)
+        exponent    = np.exp(-(np.dot(x, self.w)))
+        ans         = 1/(1+exponent)
+        # predict 1 if it's greater than 1/2 and 0 if it's less than half
+        ypred       = np.where(ans > .5, 1, 0)
+        return ypred
+
+if __name__ == '__main__':
+    filename    = '/Users/catmcqueen/Documents/SPR22/ML/data/UA-ECE-523-Sp2018/data/blood.csv'
+    with open(filename,'r') as file:
+        datard = csv.reader(file, delimiter=',')
+        data   = [dat for dat in datard]
+        
+    dataarr     = np.asarray(data)
+    #print(dataset.shape)
+    logre = LogisticReg(learningrate = .001)
+    logre.sgd(dataset)
+    
+    testdata = make_random_var(testmeans, testcovs, 2, 40)
+    predictions = logre.predict(testdata)
+    print(predictions)
+    # get MSE--> this only works if you have the results
+    #error = np.mean((predictions - testdata[:, -1])**2)
+    #print(error)
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    colormap = np.array(['r', 'g'])
+    for x,y,lab in zip(dataset[:,0],dataset[:,1],dataset[:,2]):
+            ax.scatter(x,y, c =colormap[int(lab)])
+    newcolormap = np.array(['y', 'b'])
+    for x1,x2,label in zip(testdata[:,0], testdata[:,1], predictions):
+            ax.scatter(x1,x2, c=newcolormap[int(label)])
+    plt.show()
