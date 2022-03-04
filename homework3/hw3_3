@@ -1,0 +1,113 @@
+
+
+from math import sqrt
+from tkinter import OUTSIDE
+from tkinter.tix import HList
+from cvxopt import matrix
+from cvxopt.blas import dot
+from cvxopt.solvers import qp
+import pylab
+import numpy as np
+import csv
+import pandas as pd
+from sklearn.svm import SVC
+
+
+LAMBDA  = 10.0
+B       = 2.0
+
+
+# set input data filename
+targetname    = 'target_train.csv'
+sourcename  = 'source_train.csv'
+
+def data_process(pd_source, pd_target):
+        # convert data and split it into x and y
+    sourcearray = np.array(pd_source)
+    targetarray = np.array(pd_target)
+    target_x = targetarray[:, :-1] # the x1 and x2 cols
+    target_y = targetarray[:, -1]  # the y column
+    source_x = sourcearray[:, :-1] # the x1 and x2 cols
+    source_y = sourcearray[:, -1]  # the y column
+
+    # now convert it to "matrix" form?
+    xt = np.ndarray.tolist(target_x)
+    yt = np.ndarray.tolist(target_y)
+    xs = np.ndarray.tolist(source_x)
+    ys = np.ndarray.tolist(source_y)
+
+    return xs, ys, xt, yt
+
+def vald(idx, n):
+    return LAMBDA if idx < n else 0.0
+
+def getWs(x, y):
+    clf = SVC(C = 1e5, kernel = 'linear')
+    clf.fit(x, y) 
+    return clf.coef_
+
+def calc_qp(xs, ys, xt, yt):
+    n = len(xt)
+
+    # because matrix takes each column as what's in the []
+    C = matrix([[y] for y in yt])   #A
+    c = matrix([0.])                 #b
+    
+    # then set the d and D matrixes
+    # for D make 0ne that's 1s and one that's -1s, then append them
+    Dinit1  = np.zeros((n,n))
+    np.fill_diagonal(Dinit1, 1.0)
+    Dinit1  = Dinit1.tolist()
+    Dinit2  = np.zeros((n,n))    
+    np.fill_diagonal(Dinit2, -1.0)
+    Dinit2  = Dinit2.tolist()
+    arr     = np.array(Dinit1+Dinit2) # unclear why this switches dims, .T it
+    #print('shape: {}'.format(arr.shape))
+    D =  matrix(arr.T.tolist())                #G
+    d = matrix([vald(k, n) for k in range(2*n)]) #h
+
+    # now do f and H
+    yi = np.array(yt)
+    xi = np.array(xt)
+    #H = yi*yj*xi.T*xj, to make this vectorized
+    #H = yi.T*yj*xi.T*xj, this gives us nxn matrix
+    dotprod = np.dot(xi, xi.T) # this comes out nxn
+    multval = np.dot(yi, yi.T) # this comes out nxn
+    Hlist   = np.multiply(multval, dotprod)
+    H       = matrix(Hlist.tolist())             # P
+
+    # f = -1.0 + Byi*Ws.T * xi)
+    # wS=from(n=1) to (N) sum( lamdai*yi*xi), use scikit learn for speed
+    wsout   = getWs(xs, ys)[0]
+    Ws      = np.array(wsout)
+    dotprod = np.multiply(yi, np.dot( Ws, xi.T))
+    f       = (-1.0 + B*dotprod)        #q
+    f       = matrix(f.tolist())
+    # okay now we use the CVXOpt QP solver
+    # cvxopt.solvers.qp(P, q[, G, h[, A, b[, solver[, initvals]]]])
+    returns =  qp(H, f, D, d, C, c)['x'] 
+    return returns
+
+
+
+
+
+
+if __name__ == '__main__':
+    # first collect the source data
+    pd_target = pd.read_csv(targetname, header=None,  dtype=float)
+    pd_source = pd.read_csv(sourcename, header=None,  dtype=float)
+
+    # now separate it into x and y for the source and target
+    xs, ys, xt, yt = data_process(pd_source, pd_target)
+
+    # now do something with it
+    returnvals = calc_qp(xs, ys, xt, yt)
+
+    print(returnvals)
+    maxinx = np.argmax(returnvals)
+    print('Max value: {} at {}'.format( returnvals[maxinx], maxinx))
+
+    
+
+
