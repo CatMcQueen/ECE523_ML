@@ -73,15 +73,15 @@ class LogisticReg():
         init    = 0 
         length  = len(dataset)
         for i in range(10000): # shuffle data every time 
-            np.random.shuffle(dataset) 
-            self.x  = dataset[:, :-1]
-            self.y  = dataset[:, -1]
-            if init==0: 
-                temp = self.w - self.lr * self.sumg(np.ones((len(dataset),2))) 
-                init = 1 
-            else: 
-                # multiply by 1/m to make it smaller?
-                temp = self.w - self.lr *  self.sumg(self.x) 
+            np.random.shuffle(dataset) # this shuffles by the 0th index, retains the rest
+            self.x  = dataset[:, :-1] # reset the variable x 
+            self.y  = dataset[:, -1]  # reset the variable y
+            #if init==0: 
+            #    temp = self.w - self.lr * self.sumg(np.ones((len(dataset),2))) 
+            #    init = 1 
+            #else: 
+            # multiply by 1/m to make it smaller?
+            temp = self.w - self.lr *  self.sumg(self.x) 
             if np.linalg.norm(self.w-temp)**2 < 1*10^(-3): 
                 print('finished') 
                 self.w = temp 

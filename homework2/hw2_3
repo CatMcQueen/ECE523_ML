@@ -34,21 +34,14 @@ def knn(datax, datay, x):
     # the closest one will be the one that has the smallest sqrt(x1^2 + x2^2)
     values  = np.array([np.sqrt((r[0]**2 + r[1]**2)) for r in diff])
     idx     = np.argsort(values)
-    nn      = values[idx][0:50]
-    lab     = datay[idx][0:50]
-    #print(lab)
-    #print(nn)
+    nn      = values[idx][0:10]
+    lab     = datay[idx][0:10]
     # p(x) = (k/n)/V
-    vol     = 3.14159 * nn[-1]**2
-    #numer   = float(len(np.where(lab==1)))/len(lab)
-    #print('numer {}'.format(numer))
-    n1      = np.where(lab==1)[0]#float(len(np.where(lab==1)))
-    n2      = np.where(lab==2)[0]#np.where(lab==2)float(len(np.where(lab==2)))
-
+    vol     = 3.14159 * nn[-1]**2 # volume = pi*r**2
+    n1      = np.where(lab==1)[0]#find the labels 1 in the region
+    n2      = np.where(lab==2)[0]# find the labels 2 in the region
     p1      = float(len(n1))/len(lab)/vol
     p2      = float(len(n2))/len(lab)/vol
-    #print('n1: {}, n2: {}'.format(n1[0], n2[0]))
-    #print('p1: {}, p2: {}'.format(p1, p2))
     return p1, p2
 
 
@@ -57,17 +50,16 @@ def calculate_posterior(datax, datay, x, dist=1):
     #maximum likelihood = # instances in class / # instances in dataset
     y1 = np.where(datay==1)
     y2 = np.where(datay==2)
-    py1 = float(len(y1)) / len(datay)
-    py2 = float(len(y2)) / len(datay)
+    py1 = float(len(y1)) / len(datay) # # of y==1 / # of total samples
+    py2 = float(len(y2)) / len(datay) # # of y==2 / # of total samples
     post = np.zeros((len(x),2))
     probx_giveny = np.zeros((len(x),len(x[0])))
     for i, xi in enumerate(x):
         probx_given1, probx_given2 = knn(datax, datay, xi)
-        probx_giveny[i, 0] = probx_given1
-        probx_giveny[i, 1] = probx_given2
-        probx = py1*probx_given1 + py2*probx_given2
+        probx_giveny[i, 0] = probx_given1 # p(x|y==1)
+        probx_giveny[i, 1] = probx_given2 # p(x|y==2)
+        probx = py1*probx_given1 + py2*probx_given2 # total probability theorem
         # do the posterior that it's part of the given distribution
-        #print('x|y: {}, py1 {}, py2 {}, probx {}'.format(probx_given1, py1, py2, probx))
         post[i,0] = probx_given1 * py1 / (probx)
         post[i,1] = probx_given2 * py2 / (probx)
     posteriorpred = np.argmax(np.array(post), axis=1)
